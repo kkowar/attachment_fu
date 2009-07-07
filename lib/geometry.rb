@@ -54,6 +54,9 @@ class Geometry
     new_height = orig_height
 
     case @flag
+      when  :aspect
+        new_width = @width unless @width.nil?
+        new_height = @height unless @height.nil?
       when :percent
         scale_x = @width.zero?  ? 100 : @width
         scale_y = @height.zero? ? @width : @height
