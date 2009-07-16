@@ -38,64 +38,35 @@ module Technoweenie # :nodoc:
         # Performs the actual resizing operation for a thumbnail
         def resize_image(img, size)
           size = size.first if size.is_a?(Array) && size.length == 1
-          img.combine_options do |commands|
-            commands.strip unless attachment_options[:keep_profile]
-
-            # gif are not handled correct, this is a hack, but it seems to work.
-            if img.output =~ / GIF /
-              img.format("png")
-            end           
-            
-            if size.is_a?(Fixnum) || (size.is_a?(Array) && size.first.is_a?(Fixnum))
-              if size.is_a?(Fixnum)
-                size = [size, size]
-                commands.resize(size.join('x'))
-              else
-                commands.resize(size.join('x') + '!')
-              end
-            # extend to thumbnail size
-            elsif size.is_a?(String) and size =~ /e$/
-              size = size.gsub(/e/, '')
-              commands.resize(size.to_s + '>')
-              commands.background('#ffffff')
-              commands.gravity('center')
-              commands.extent(size)
-            # crop thumbnail, the smart way
-            elsif size.is_a?(String) and size =~ /c$/
-               size = size.gsub(/c/, '')
-              
-              # calculate sizes and aspect ratio
-              thumb_width, thumb_height = size.split("x")
-              thumb_width   = thumb_width.to_f
-              thumb_height  = thumb_height.to_f
-              
-              thumb_aspect = thumb_width.to_f / thumb_height.to_f
-              image_width, image_height = img[:width].to_f, img[:height].to_f
-              image_aspect = image_width / image_height
-              
-              # only crop if image is not smaller in both dimensions
-              unless image_width < thumb_width and image_height < thumb_height
-                command = calculate_offset(image_width,image_height,image_aspect,thumb_width,thumb_height,thumb_aspect)
-
-                # crop image
-                commands.extract(command)
-              end
-
-              # don not resize if image is not as height or width then thumbnail
-              if image_width < thumb_width or image_height < thumb_height                   
-                  commands.background('#ffffff')
-                  commands.gravity('center')
-                  commands.extent(size)
-              # resize image
-              else
-                commands.resize("#{size.to_s}")
-              end
-            # crop end
+          if size.is_a?(Fixnum) || (size.is_a?(Array) && size.first.is_a?(Fixnum))
+            if size.is_a?(Fixnum)
+              size = [size, size]
+              img.resize(size.join('x'))
             else
-              commands.resize(size.to_s)
+              img.resize(size.join('x') + '!')
             end
+          else
+            n_size = [img[:width], img[:height]] / size.to_s
+            if size.ends_with? "!"
+              aspect = n_size[0].to_f / n_size[1].to_f
+              ih, iw = img[:height], img[:width]
+              w, h = (ih * aspect), (iw / aspect)
+              w = [iw, w].min.to_i
+              h = [ih, h].min.to_i
+              if ih > h
+                shave_off =  ((ih - h) / 2).round
+                img.shave("0x#{shave_off}")
+              end
+              if iw > w
+                shave_off = ((iw - w ) / 2).round
+                img.shave("#{shave_off}x0")
+              end
+              img.resize(size.to_s)
+            else
+              img.resize(size.to_s)
+            end
+            self.temp_path = img
           end
-          temp_paths.unshift img
         end
 
         def calculate_offset(image_width,image_height,image_aspect,thumb_width,thumb_height,thumb_aspect)
